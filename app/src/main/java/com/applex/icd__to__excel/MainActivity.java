@@ -6,7 +6,6 @@ import android.annotation.SuppressLint;
 import android.app.ProgressDialog;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.Toast;
@@ -25,7 +24,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
-
 import javax.net.ssl.HttpsURLConnection;
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -67,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
         get_icd_part_2.setOnClickListener(v -> new ICD_Codes_Part_2().execute());
         get_icd_part_3.setOnClickListener(v -> new ICD_Codes_Part_3().execute());
         get_icd_part_4.setOnClickListener(v -> new ICD_Codes_Part_4().execute());
-
     }
 
     @SuppressLint("StaticFieldLeak")
@@ -85,9 +82,9 @@ public class MainActivity extends AppCompatActivity {
                 // set parameters to post
                 String urlParameters =
                         "client_id=" + URLEncoder.encode(CLIENT_ID, "UTF-8") +
-                                "&client_secret=" + URLEncoder.encode(CLIENT_SECRET, "UTF-8") +
-                                "&scope=" + URLEncoder.encode(SCOPE, "UTF-8") +
-                                "&grant_type=" + URLEncoder.encode(GRANT_TYPE, "UTF-8");
+                        "&client_secret=" + URLEncoder.encode(CLIENT_SECRET, "UTF-8") +
+                        "&scope=" + URLEncoder.encode(SCOPE, "UTF-8") +
+                        "&grant_type=" + URLEncoder.encode(GRANT_TYPE, "UTF-8");
                 con.setDoOutput(true);
                 DataOutputStream wr = new DataOutputStream(con.getOutputStream());
                 wr.writeBytes(urlParameters);
@@ -119,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     public class ICD_Codes_Part_1 extends AsyncTask<Void, Void, Void> {
         int i, j, k, l;
         int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
@@ -167,12 +165,14 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
                     List<String> list1 = Objects.requireNonNull(response.body()).child;
+                    String code = response.body().code;
+                    String value = response.body().title.value;
                     for(j = 0; j < list1.size(); j++) {
                         String link1 = list1.get(j);
                         int index_1 = link1.lastIndexOf('/');
                         String id_1 = link1.substring(index_1 + 1);
                         Log.d("BAMCHIKI", "hi1" + id_1);
-                        databaseHelper_1.addData(id_1);
+                        databaseHelper_1.addData(code, value, id_1);
                     }
                 }
 
@@ -193,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     public class ICD_Codes_Part_2 extends AsyncTask<Void, Void, Void> {
         int i, j, k, l;
         int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
@@ -202,7 +203,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPreExecute() {
-            part_1 = databaseHelper_1.getData();
+            part_1 = databaseHelper_1.getCode();
             progressDialog = new ProgressDialog(MainActivity.this);
             progressDialog.setTitle("Processing your code");
             progressDialog.setMessage("Please wait...");
@@ -221,12 +222,15 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
                             List<String> list2 = Objects.requireNonNull(response.body()).child;
+                            String code = response.body().code;
+                            String value = response.body().title.value;
                             for(k = 0; k < list2.size(); k++) {
                                 String link2 = list2.get(k);
                                 int index_2 = link2.lastIndexOf('/');
                                 String id_2 = link2.substring(index_2 + 1);
-                                Log.d("BAMCHIKI", "hi2" + id_2);
-                                databaseHelper_2.addData(id_2);
+                                ArrayList<String> temp = databaseHelper_1.getData(code);
+                                Log.d("BAMCHIKI", "hi2_" + temp.get(0) + "_" + temp.get(1) + "_" + code + "_" + value + "_" + id_2);
+                                databaseHelper_2.addData(temp.get(0), temp.get(1), code, value, id_2);
                             }
                             if(k == list2.size()) {
                                 i++;
@@ -249,10 +253,11 @@ public class MainActivity extends AppCompatActivity {
                 progressDialog.dismiss();
             }
             part_1.clear();
-            Toast.makeText(MainActivity.this, "Part 2 Completed " + databaseHelper_2.getData().size(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Part 2 Completed " + databaseHelper_2.getCode().size(), Toast.LENGTH_SHORT).show();
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     public class ICD_Codes_Part_3 extends AsyncTask<Void, Void, Void> {
         int i, j, k, l;
         int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
@@ -262,7 +267,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPreExecute() {
-            part_2 = databaseHelper_2.getData();
+            part_2 = databaseHelper_2.getCode();
             progressDialog = new ProgressDialog(MainActivity.this);
             progressDialog.setTitle("Processing your code");
             progressDialog.setMessage("Please wait...");
@@ -280,9 +285,13 @@ public class MainActivity extends AppCompatActivity {
                         @Override
                         public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
                             List<String> list3 = Objects.requireNonNull(response.body()).child;
+                            String code = response.body().code;
+                            String value = response.body().title.value;
+                            ArrayList<String> temp = databaseHelper_2.getData(code);
+
                             if (list3 == null) {
-                                databaseHelper_3.addData(part_2.get(i));
-                                Log.d("BAMCHIKI", "hi3" + part_2.get(i));
+                                databaseHelper_3.addData(temp.get(0), temp.get(1), temp.get(2), temp.get(3), code, value, code);
+                                Log.d("BAMCHIKI", "hi3_" + temp.get(0) + "_" + temp.get(1) + "_" + temp.get(2) + "_" + temp.get(3) + "_"+ code + "_" + value + "_" + "---");
                                 i++;
                             }
                             else {
@@ -290,8 +299,8 @@ public class MainActivity extends AppCompatActivity {
                                     String link3 = list3.get(l);
                                     int index_3 = link3.lastIndexOf('/');
                                     String id_3 = link3.substring(index_3 + 1);
-                                    Log.d("BAMCHIKI", "hi3" + id_3);
-                                    databaseHelper_3.addData(id_3);
+                                    Log.d("BAMCHIKI", "hi3_" + temp.get(0) + "_" + temp.get(1) + "_" + temp.get(2) + "_" + temp.get(3) + "_"+ code + "_" + value + "_" + id_3);
+                                    databaseHelper_3.addData(temp.get(0), temp.get(1), temp.get(2), temp.get(3), code, value, id_3);
                                 }
                                 if (l == list3.size()) {
                                     i++;
@@ -315,10 +324,11 @@ public class MainActivity extends AppCompatActivity {
                 progressDialog.dismiss();
             }
             part_2.clear();
-            Toast.makeText(MainActivity.this, "Part 3 Completed " + databaseHelper_3.getData().size(), Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Part 3 Completed " + databaseHelper_3.getCode().size(), Toast.LENGTH_SHORT).show();
         }
     }
 
+    @SuppressLint("StaticFieldLeak")
     public class ICD_Codes_Part_4 extends AsyncTask<Void, Void, Void> {
         int i, j, k, l;
         int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
@@ -328,7 +338,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPreExecute() {
-            part_3 = databaseHelper_3.getData();
+            part_3 = databaseHelper_3.getCode();
             progressDialog = new ProgressDialog(MainActivity.this);
             progressDialog.setTitle("Processing your code");
             progressDialog.setMessage("Please wait...");
@@ -348,9 +358,10 @@ public class MainActivity extends AppCompatActivity {
                         public void onResponse(@NonNull Call<ICDCodeModel> call, @NonNull Response<ICDCodeModel> response) {
                             String code = Objects.requireNonNull(response.body()).code;
                             String value = response.body().title.value;
+                            ArrayList<String> temp = databaseHelper_3.getData(code);
+                            Log.d("BAMCHIKI", "hi3_" + temp.get(0) + "_" + temp.get(1) + "_" + temp.get(2) + "_" + temp.get(3) + "_" + temp.get(4) + "_" + temp.get(5) + "_"+ code + "_" + value);
+                            databaseHelper_4.addData(temp.get(0), temp.get(1), temp.get(2), temp.get(3), temp.get(4), temp.get(5), code, value);
                             i++;
-                            Log.d("BAMCHIKI", "hi4_" + part_3.get(i) + "_" + code + "_" + value + "_" + i);
-                            databaseHelper_4.addData(code, value);
 //                            new SendRequest(code, value).execute();
                         }
 
