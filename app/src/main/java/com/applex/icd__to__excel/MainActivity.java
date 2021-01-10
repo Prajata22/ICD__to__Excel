@@ -1,32 +1,48 @@
 package com.applex.icd__to__excel;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-
 import android.annotation.SuppressLint;
+import android.app.ProgressDialog;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
-import android.widget.TextView;
-
+import android.widget.Button;
+import android.widget.Toast;
 import org.json.JSONObject;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.DataOutputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Objects;
+
 import javax.net.ssl.HttpsURLConnection;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+import static com.applex.icd__to__excel.Constants.CLIENT_ID;
+import static com.applex.icd__to__excel.Constants.CLIENT_SECRET;
+import static com.applex.icd__to__excel.Constants.GRANT_TYPE;
+import static com.applex.icd__to__excel.Constants.SCOPE;
+import static com.applex.icd__to__excel.Constants.TOKEN_ENDPOINT;
 
 public class MainActivity extends AppCompatActivity {
 
-    private final String TOKEN_ENPOINT = "https://icdaccessmanagement.who.int/connect/token";
-    private final String CLIENT_ID = "293e8de0-8e7b-459d-94f0-2b893a662fad_66d29d64-f45c-4321-b9a8-722a4b9fbf2d";
-    private final String CLIENT_SECRET = "5/cImc/L3oJ7Fmi1icmNPGntnM96e9uUA06ILBltivw=";
-    private final String SCOPE = "icdapi_access";
-    private final String GRANT_TYPE = "client_credentials";
-    private final String URI = "https://id.who.int/icd/release/10/2019/A00.0";
-
-    private TextView text;
+    private SharedPref sharedPref;
+    private DatabaseHelper_1 databaseHelper_1;
+    private DatabaseHelper_2 databaseHelper_2;
+    private DatabaseHelper_3 databaseHelper_3;
+    private DatabaseHelper_4 databaseHelper_4;
 
     @SuppressLint("SetTextI18n")
     @Override
@@ -34,93 +50,61 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        text = findViewById(R.id.text);
-        new API_task().execute();
-    }
+        Button get_token = findViewById(R.id.get_token);
+        Button get_icd_part_1 = findViewById(R.id.get_icd_codes_1);
+        Button get_icd_part_2 = findViewById(R.id.get_icd_codes_2);
+        Button get_icd_part_3 = findViewById(R.id.get_icd_codes_3);
+        Button get_icd_part_4 = findViewById(R.id.get_icd_codes_4);
 
-    // get the OAUTH2 token
-    private String getToken() throws Exception {
+        sharedPref = new SharedPref(MainActivity.this);
+        databaseHelper_1 = new DatabaseHelper_1(MainActivity.this);
+        databaseHelper_2 = new DatabaseHelper_2(MainActivity.this);
+        databaseHelper_3 = new DatabaseHelper_3(MainActivity.this);
+        databaseHelper_4 = new DatabaseHelper_4(MainActivity.this);
 
-        System.out.println("Getting token...");
+        get_token.setOnClickListener(v -> new Token().execute());
+        get_icd_part_1.setOnClickListener(v -> new ICD_Codes_Part_1().execute());
+        get_icd_part_2.setOnClickListener(v -> new ICD_Codes_Part_2().execute());
+        get_icd_part_3.setOnClickListener(v -> new ICD_Codes_Part_3().execute());
+        get_icd_part_4.setOnClickListener(v -> new ICD_Codes_Part_4().execute());
 
-        URL url = new URL(TOKEN_ENPOINT);
-        HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
-        con.setRequestMethod("POST");
-
-        // set parameters to post
-        String urlParameters =
-                "client_id=" + URLEncoder.encode(CLIENT_ID, "UTF-8") +
-                        "&client_secret=" + URLEncoder.encode(CLIENT_SECRET, "UTF-8") +
-                        "&scope=" + URLEncoder.encode(SCOPE, "UTF-8") +
-                        "&grant_type=" + URLEncoder.encode(GRANT_TYPE, "UTF-8");
-        con.setDoOutput(true);
-        DataOutputStream wr = new DataOutputStream(con.getOutputStream());
-        wr.writeBytes(urlParameters);
-        wr.flush();
-        wr.close();
-
-        // response
-        int responseCode = con.getResponseCode();
-        Log.e("BUMBAM", "Token Response Code : " + responseCode + "\n");
-
-        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-        String inputLine;
-        StringBuilder response = new StringBuilder();
-        while ((inputLine = in.readLine()) != null) {
-            response.append(inputLine);
-        }
-        in.close();
-
-        // parse JSON response
-        JSONObject jsonObj = new JSONObject(response.toString());
-        return jsonObj.getString("access_token");
-    }
-
-
-    // access ICD API
-    private String getURI(String token) throws Exception {
-
-        System.out.println("Getting URI...");
-
-        URL url = new URL(URI);
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-        con.setInstanceFollowRedirects(false); /* added line */
-
-        con.setRequestMethod("GET");
-
-        // HTTP header fields to set
-        con.setRequestProperty("Authorization", "Bearer " + token);
-        con.setRequestProperty("Accept", "application/json");
-        con.setRequestProperty("Accept-Language", "en");
-        con.setRequestProperty("API-Version", "v2");
-
-        // response
-        int responseCode = con.getResponseCode();
-        Log.e("BUMBAM","URI Response Code : " + responseCode + "\n");
-
-        InputStreamReader isr = new InputStreamReader(con.getInputStream());
-
-        BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
-        String inputLine;
-        StringBuilder response = new StringBuilder();
-        while ((inputLine = in.readLine()) != null) {
-            response.append(inputLine);
-        }
-        in.close();
-
-        return response.toString();
     }
 
     @SuppressLint("StaticFieldLeak")
-    public class API_task extends AsyncTask<Void, Void, Void> {
+    public class Token extends AsyncTask<Void, Void, Void> {
 
-        String response;
+        String token;
 
         @Override
         protected Void doInBackground(Void... voids) {
             try {
-                String token = getToken();
-                response = "URI Response JSON : \n" + getURI(token);
+                URL url = new URL(TOKEN_ENDPOINT);
+                HttpsURLConnection con = (HttpsURLConnection) url.openConnection();
+                con.setRequestMethod("POST");
+
+                // set parameters to post
+                String urlParameters =
+                        "client_id=" + URLEncoder.encode(CLIENT_ID, "UTF-8") +
+                                "&client_secret=" + URLEncoder.encode(CLIENT_SECRET, "UTF-8") +
+                                "&scope=" + URLEncoder.encode(SCOPE, "UTF-8") +
+                                "&grant_type=" + URLEncoder.encode(GRANT_TYPE, "UTF-8");
+                con.setDoOutput(true);
+                DataOutputStream wr = new DataOutputStream(con.getOutputStream());
+                wr.writeBytes(urlParameters);
+                wr.flush();
+                wr.close();
+
+                BufferedReader in = new BufferedReader(new InputStreamReader(con.getInputStream()));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+
+                // parse JSON response
+                JSONObject jsonObj = new JSONObject(response.toString());
+                token = jsonObj.getString("access_token");
             } catch (Exception e) {
                 Log.e("BAMCHIKI", e.toString());
             }
@@ -130,8 +114,350 @@ public class MainActivity extends AppCompatActivity {
         @Override
         protected void onPostExecute(Void aVoid) {
             super.onPostExecute(aVoid);
-//            Log.i("BUMBAMBIM", response);
-            text.setText(response);
+            Toast.makeText(MainActivity.this, token, Toast.LENGTH_SHORT).show();
+            sharedPref.setAccessToken(token);
         }
+    }
+
+    public class ICD_Codes_Part_1 extends AsyncTask<Void, Void, Void> {
+        int i, j, k, l;
+        int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
+        String releaseID;
+        ProgressDialog progressDialog;
+
+        @Override
+        protected void onPreExecute() {
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setTitle("Processing your code");
+            progressDialog.setMessage("Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            //2, 3, 19, 20
+            switch (1) {
+                case 1: releaseID = "I"; break;
+                case 2: releaseID = "II"; break;
+                case 3: releaseID = "III"; break;
+                case 4: releaseID = "IV"; break;
+                case 5: releaseID = "V"; break;
+                case 6: releaseID = "VI"; break;
+                case 7: releaseID = "VII"; break;
+                case 8: releaseID = "VIII"; break;
+                case 9: releaseID = "IX"; break;
+                case 10: releaseID = "X"; break;
+                case 11: releaseID = "XI"; break;
+                case 12: releaseID = "XII"; break;
+                case 13: releaseID = "XIII"; break;
+                case 14: releaseID = "XIV"; break;
+                case 15: releaseID = "XV"; break;
+                case 16: releaseID = "XVI"; break;
+                case 17: releaseID = "XVII"; break;
+                case 18: releaseID = "XVIII"; break;
+                case 19: releaseID = "XIX"; break;
+                case 20: releaseID = "XX"; break;
+                case 21: releaseID = "XXI"; break;
+                case 22: releaseID = "XXII"; break;
+            }
+
+            Call<ResponseModel> call1 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part1("I");
+            call1.enqueue(new Callback<ResponseModel>() {
+                @Override
+                public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
+                    List<String> list1 = Objects.requireNonNull(response.body()).child;
+                    for(j = 0; j < list1.size(); j++) {
+                        String link1 = list1.get(j);
+                        int index_1 = link1.lastIndexOf('/');
+                        String id_1 = link1.substring(index_1 + 1);
+                        Log.d("BAMCHIKI", "hi1" + id_1);
+                        databaseHelper_1.addData(id_1);
+                    }
+                }
+
+                @Override
+                public void onFailure(@NonNull Call<ResponseModel> call, @NonNull Throwable t) {
+                    Log.d("BAMCHIKI1", t.getMessage());
+                }
+            });
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            if(progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+            Toast.makeText(MainActivity.this, "Part 1 Completed " , Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public class ICD_Codes_Part_2 extends AsyncTask<Void, Void, Void> {
+        int i, j, k, l;
+        int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
+        String releaseID;
+        ProgressDialog progressDialog;
+        ArrayList<String> part_1 = new ArrayList<>();
+
+        @Override
+        protected void onPreExecute() {
+            part_1 = databaseHelper_1.getData();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setTitle("Processing your code");
+            progressDialog.setMessage("Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            Log.d("BAMCHIKI", part_1.size() + "");
+            for(i = 0; i < part_1.size(); ) {
+                if(prev_i != i && i < part_1.size()) {
+                    prev_i = i;
+                    Call<ResponseModel> call2 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part1(part_1.get(i));
+                    call2.enqueue(new Callback<ResponseModel>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
+                            List<String> list2 = Objects.requireNonNull(response.body()).child;
+                            for(k = 0; k < list2.size(); k++) {
+                                String link2 = list2.get(k);
+                                int index_2 = link2.lastIndexOf('/');
+                                String id_2 = link2.substring(index_2 + 1);
+                                Log.d("BAMCHIKI", "hi2" + id_2);
+                                databaseHelper_2.addData(id_2);
+                            }
+                            if(k == list2.size()) {
+                                i++;
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ResponseModel> call, @NonNull Throwable t) {
+                            Log.d("BAMCHIKI2", t.getMessage());
+                        }
+                    });
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            if(progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+            part_1.clear();
+            Toast.makeText(MainActivity.this, "Part 2 Completed " + databaseHelper_2.getData().size(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public class ICD_Codes_Part_3 extends AsyncTask<Void, Void, Void> {
+        int i, j, k, l;
+        int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
+        String releaseID;
+        ProgressDialog progressDialog;
+        ArrayList<String> part_2 = new ArrayList<>();
+
+        @Override
+        protected void onPreExecute() {
+            part_2 = databaseHelper_2.getData();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setTitle("Processing your code");
+            progressDialog.setMessage("Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            for(i = 0; i < part_2.size(); ) {
+                if(prev_i != i && i < part_2.size()) {
+                    prev_i = i;
+                    Call<ResponseModel> call3 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part1(part_2.get(i));
+                    call3.enqueue(new Callback<ResponseModel>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
+                            List<String> list3 = Objects.requireNonNull(response.body()).child;
+                            if (list3 == null) {
+                                databaseHelper_3.addData(part_2.get(i));
+                                Log.d("BAMCHIKI", "hi3" + part_2.get(i));
+                                i++;
+                            }
+                            else {
+                                for (l = 0; l < list3.size(); l++) {
+                                    String link3 = list3.get(l);
+                                    int index_3 = link3.lastIndexOf('/');
+                                    String id_3 = link3.substring(index_3 + 1);
+                                    Log.d("BAMCHIKI", "hi3" + id_3);
+                                    databaseHelper_3.addData(id_3);
+                                }
+                                if (l == list3.size()) {
+                                    i++;
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ResponseModel> call, @NonNull Throwable t) {
+                            Log.d("BAMCHIKI3", t.getMessage());
+                        }
+                    });
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            if(progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+            part_2.clear();
+            Toast.makeText(MainActivity.this, "Part 3 Completed " + databaseHelper_3.getData().size(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public class ICD_Codes_Part_4 extends AsyncTask<Void, Void, Void> {
+        int i, j, k, l;
+        int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
+        String releaseID;
+        ProgressDialog progressDialog;
+        ArrayList<String> part_3 = new ArrayList<>();
+
+        @Override
+        protected void onPreExecute() {
+            part_3 = databaseHelper_3.getData();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setTitle("Processing your code");
+            progressDialog.setMessage("Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            for(i = 0; i < part_3.size(); ) {
+                if(prev_i != i && i < part_3.size()) {
+                    prev_i = i;
+
+                    Call<ICDCodeModel> call4 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part2(part_3.get(i));
+                    call4.enqueue(new Callback<ICDCodeModel>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ICDCodeModel> call, @NonNull Response<ICDCodeModel> response) {
+                            String code = Objects.requireNonNull(response.body()).code;
+                            String value = response.body().title.value;
+                            i++;
+                            Log.d("BAMCHIKI", "hi4_" + part_3.get(i) + "_" + code + "_" + value + "_" + i);
+                            databaseHelper_4.addData(code, value);
+//                            new SendRequest(code, value).execute();
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ICDCodeModel> call, @NonNull Throwable t) {
+                            Log.d("BAMCHIKI4", t.getMessage());
+                        }
+                    });
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            if(progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+            Toast.makeText(MainActivity.this, "Part 4 Completed", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public class SendRequest extends AsyncTask<Void, Void, Void> {
+
+        String code, value;
+
+        SendRequest(String code, String value) {
+            this.code = code;
+            this.value = value;
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            try {
+                //INSERT SCRIPT URL
+                URL url = new URL(Constants.SCRIPT_ID);
+
+                JSONObject postDataParams = new JSONObject();
+
+                postDataParams.put(Constants.NAME, code);
+                postDataParams.put(Constants.DESCRIPTION, value);
+
+                //INSERT SHEET ID
+                postDataParams.put(Constants.ID_SHEET, Constants.SHEET_ID);
+
+                Log.e("params", postDataParams.toString());
+
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setReadTimeout(15000 /* milliseconds */);
+                conn.setConnectTimeout(15000 /* milliseconds */);
+                conn.setRequestMethod("POST");
+                conn.setDoInput(true);
+                conn.setDoOutput(true);
+
+                OutputStream os = conn.getOutputStream();
+                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, StandardCharsets.UTF_8));
+                writer.write(getPostDataString(postDataParams));
+
+                writer.flush();
+                writer.close();
+                os.close();
+
+                int responseCode = conn.getResponseCode();
+
+                if (responseCode == HttpsURLConnection.HTTP_OK) {
+
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder sb = new StringBuilder();
+                    String line;
+
+                    while ((line = in.readLine()) != null) {
+                        sb.append(line);
+                    }
+
+                    in.close();
+                } else {
+                    Log.d("BAMCHIKI9", responseCode + "_");
+                }
+            } catch (Exception e) {
+                Log.d("BAMCHIKI8", e.toString());
+            }
+            return null;
+        }
+    }
+
+    public String getPostDataString(JSONObject params) throws Exception {
+
+        StringBuilder result = new StringBuilder();
+        boolean first = true;
+
+        Iterator<String> itr = params.keys();
+
+        while(itr.hasNext()){
+
+            String key= itr.next();
+            Object value = params.get(key);
+
+            if (first)
+                first = false;
+            else
+                result.append("&");
+
+            result.append(URLEncoder.encode(key, "UTF-8"));
+            result.append("=");
+            result.append(URLEncoder.encode(value.toString(), "UTF-8"));
+
+        }
+        return result.toString();
     }
 }

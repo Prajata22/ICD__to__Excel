@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">ICD__to__Excel</string>
+    <string name="get_token">GET TOKEN</string>
+    <string name="get_icd_codes_1">GET ICD CODES PART 1</string>
+    <string name="get_icd_codes_2">GET ICD CODES PART 2</string>
+    <string name="get_icd_codes_3">GET ICD CODES PART 3</string>
+    <string name="get_icd_codes_4">GET ICD CODES PART 4</string>
 </resources>
