@@ -37,7 +37,9 @@ import static com.applex.icd__to__excel.Constants.TOKEN_ENDPOINT;
 public class MainActivity extends AppCompatActivity {
 
     private SharedPref sharedPref;
+    private DatabaseHelper_0 databaseHelper_0;
     private DatabaseHelper_1 databaseHelper_1;
+    private DatabaseHelper_1_half databaseHelper_1_half;
     private DatabaseHelper_2 databaseHelper_2;
     private DatabaseHelper_3 databaseHelper_3;
     private DatabaseHelper_4 databaseHelper_4;
@@ -49,19 +51,25 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         Button get_token = findViewById(R.id.get_token);
+        Button get_icd_part_0 = findViewById(R.id.get_icd_codes_0);
         Button get_icd_part_1 = findViewById(R.id.get_icd_codes_1);
+        Button get_icd_part_1_half = findViewById(R.id.get_icd_codes_1_half);
         Button get_icd_part_2 = findViewById(R.id.get_icd_codes_2);
         Button get_icd_part_3 = findViewById(R.id.get_icd_codes_3);
         Button get_icd_part_4 = findViewById(R.id.get_icd_codes_4);
 
         sharedPref = new SharedPref(MainActivity.this);
+        databaseHelper_0 = new DatabaseHelper_0(MainActivity.this);
         databaseHelper_1 = new DatabaseHelper_1(MainActivity.this);
+        databaseHelper_1_half = new DatabaseHelper_1_half(MainActivity.this);
         databaseHelper_2 = new DatabaseHelper_2(MainActivity.this);
         databaseHelper_3 = new DatabaseHelper_3(MainActivity.this);
         databaseHelper_4 = new DatabaseHelper_4(MainActivity.this);
 
         get_token.setOnClickListener(v -> new Token().execute());
+        get_icd_part_0.setOnClickListener(v -> new ICD_Codes_Part_0().execute());
         get_icd_part_1.setOnClickListener(v -> new ICD_Codes_Part_1().execute());
+        get_icd_part_1_half.setOnClickListener(v -> new ICD_Codes_Part_1_half().execute());
         get_icd_part_2.setOnClickListener(v -> new ICD_Codes_Part_2().execute());
         get_icd_part_3.setOnClickListener(v -> new ICD_Codes_Part_3().execute());
         get_icd_part_4.setOnClickListener(v -> new ICD_Codes_Part_4().execute());
@@ -117,7 +125,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @SuppressLint("StaticFieldLeak")
-    public class ICD_Codes_Part_1 extends AsyncTask<Void, Void, Void> {
+    public class ICD_Codes_Part_0 extends AsyncTask<Void, Void, Void> {
         int i, j, k, l;
         int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
         String releaseID;
@@ -134,8 +142,8 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected Void doInBackground(Void... voids) {
-            //2, 3, 19, 20
-            switch (1) {
+            //2, 13, 19, 20
+            switch (20) {
                 case 1: releaseID = "I"; break;
                 case 2: releaseID = "II"; break;
                 case 3: releaseID = "III"; break;
@@ -160,19 +168,24 @@ public class MainActivity extends AppCompatActivity {
                 case 22: releaseID = "XXII"; break;
             }
 
-            Call<ResponseModel> call1 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part1("I");
+            Call<ResponseModel> call1 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part1(releaseID);
             call1.enqueue(new Callback<ResponseModel>() {
                 @Override
                 public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
-                    List<String> list1 = Objects.requireNonNull(response.body()).child;
-                    String code = response.body().code;
-                    String value = response.body().title.value;
-                    for(j = 0; j < list1.size(); j++) {
-                        String link1 = list1.get(j);
-                        int index_1 = link1.lastIndexOf('/');
-                        String id_1 = link1.substring(index_1 + 1);
-                        Log.d("BAMCHIKI", "hi1" + id_1);
-                        databaseHelper_1.addData(code, value, id_1);
+                    if(response.body() == null) {
+                        Log.d("BAMCHIKI", "Why?");
+                    }
+                    else {
+                        List<String> list1 = Objects.requireNonNull(response.body()).child;
+                        String code = response.body().code;
+                        String value = response.body().title.value;
+                        for(j = 0; j < list1.size(); j++) {
+                            String link1 = list1.get(j);
+                            int index_1 = link1.lastIndexOf('/');
+                            String id_1 = link1.substring(index_1 + 1);
+                            Log.d("BAMCHIKI", "hi0_" + id_1);
+                            databaseHelper_0.addData(code, value, id_1);
+                        }
                     }
                 }
 
@@ -189,7 +202,149 @@ public class MainActivity extends AppCompatActivity {
             if(progressDialog != null && progressDialog.isShowing()) {
                 progressDialog.dismiss();
             }
-            Toast.makeText(MainActivity.this, "Part 1 Completed " , Toast.LENGTH_SHORT).show();
+            Toast.makeText(MainActivity.this, "Part 0 Completed " , Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @SuppressLint("StaticFieldLeak")
+    public class ICD_Codes_Part_1 extends AsyncTask<Void, Void, Void> {
+        int i, j, k, l;
+        int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
+        String releaseID;
+        ProgressDialog progressDialog;
+        ArrayList<String> part_0 = new ArrayList<>();
+
+        @Override
+        protected void onPreExecute() {
+            part_0 = databaseHelper_0.getCode();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setTitle("Processing your code");
+            progressDialog.setMessage("Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            for(i = 0; i < part_0.size(); ) {
+                if(prev_i != i && i < part_0.size()) {
+                    prev_i = i;
+                    Call<ResponseModel> call2 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part1(part_0.get(i));
+                    call2.enqueue(new Callback<ResponseModel>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
+                            List<String> list2 = Objects.requireNonNull(response.body()).child;
+                            String code = response.body().code;
+                            String value = response.body().title.value;
+                            for(k = 0; k < list2.size(); k++) {
+                                String link2 = list2.get(k);
+                                int index_2 = link2.lastIndexOf('/');
+                                String id_2 = link2.substring(index_2 + 1);
+                                ArrayList<String> temp = databaseHelper_0.getData(code);
+                                if(id_2.contains("-")) {
+                                    Log.d("BAMCHIKI", "hi1_" + temp.get(0) + "_" + temp.get(1) + "_" + id_2);
+                                    databaseHelper_1.addData(temp.get(0), temp.get(1), id_2);
+                                }
+                                else {
+                                    Log.d("BAMCHIKI", "hi1_" + temp.get(0) + "_" + temp.get(1) + "_" + code);
+                                    databaseHelper_1.addData(temp.get(0), temp.get(1), code);
+                                    i++;
+                                    break;
+                                }
+                            }
+                            if(k == list2.size()) {
+                                i++;
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ResponseModel> call, @NonNull Throwable t) {
+                            Log.d("BAMCHIKI2", t.getMessage());
+                        }
+                    });
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            if(progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+            part_0.clear();
+            Toast.makeText(MainActivity.this, "Part 1 Completed " + databaseHelper_1.getCode().size(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @SuppressLint("StaticFieldLeak")
+    public class ICD_Codes_Part_1_half extends AsyncTask<Void, Void, Void> {
+        int i, j, k, l;
+        int prev_i = -1, prev_j = -1, prev_k = -1, prev_l = -1;
+        String releaseID;
+        ProgressDialog progressDialog;
+        ArrayList<String> part_0_half = new ArrayList<>();
+
+        @Override
+        protected void onPreExecute() {
+            part_0_half = databaseHelper_1.getCode();
+            progressDialog = new ProgressDialog(MainActivity.this);
+            progressDialog.setTitle("Processing your code");
+            progressDialog.setMessage("Please wait...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+            for(i = 0; i < part_0_half.size(); ) {
+                if(prev_i != i && i < part_0_half.size()) {
+                    prev_i = i;
+                    Call<ResponseModel> call2 = RetrofitHelper.getInstance(MainActivity.this).getIcdInterface().get_ICD_codes_part1(part_0_half.get(i));
+                    call2.enqueue(new Callback<ResponseModel>() {
+                        @Override
+                        public void onResponse(@NonNull Call<ResponseModel> call, @NonNull Response<ResponseModel> response) {
+                            List<String> list2 = Objects.requireNonNull(response.body()).child;
+                            String code = response.body().code;
+                            String value = response.body().title.value;
+                            for(k = 0; k < list2.size(); k++) {
+                                String link2 = list2.get(k);
+                                int index_2 = link2.lastIndexOf('/');
+                                String id_2 = link2.substring(index_2 + 1);
+                                ArrayList<String> temp = databaseHelper_1.getData(code);
+                                if(id_2.contains("-")) {
+                                    Log.d("BAMCHIKI", "hi1_half_" + temp.get(0) + "_" + temp.get(1) + "_" + id_2);
+                                    databaseHelper_1_half.addData(temp.get(0), temp.get(1), id_2);
+                                }
+                                else {
+                                    Log.d("BAMCHIKI", "hi1_half_" + temp.get(0) + "_" + temp.get(1) + "_" + code);
+                                    databaseHelper_1_half.addData(temp.get(0), temp.get(1), code);
+                                    i++;
+                                    break;
+                                }
+                            }
+                            if(k == list2.size()) {
+                                i++;
+                            }
+                        }
+
+                        @Override
+                        public void onFailure(@NonNull Call<ResponseModel> call, @NonNull Throwable t) {
+                            Log.d("BAMCHIKI2", t.getMessage());
+                        }
+                    });
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            if(progressDialog != null && progressDialog.isShowing()) {
+                progressDialog.dismiss();
+            }
+            part_0_half.clear();
+            Toast.makeText(MainActivity.this, "Part 1 half Completed " + databaseHelper_1_half.getCode().size(), Toast.LENGTH_SHORT).show();
         }
     }
 
@@ -203,7 +358,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         protected void onPreExecute() {
-            part_1 = databaseHelper_1.getCode();
+            part_1 = databaseHelper_1_half.getCode();
             progressDialog = new ProgressDialog(MainActivity.this);
             progressDialog.setTitle("Processing your code");
             progressDialog.setMessage("Please wait...");
@@ -228,7 +383,7 @@ public class MainActivity extends AppCompatActivity {
                                 String link2 = list2.get(k);
                                 int index_2 = link2.lastIndexOf('/');
                                 String id_2 = link2.substring(index_2 + 1);
-                                ArrayList<String> temp = databaseHelper_1.getData(code);
+                                ArrayList<String> temp = databaseHelper_1_half.getData(code);
                                 Log.d("BAMCHIKI", "hi2_" + temp.get(0) + "_" + temp.get(1) + "_" + code + "_" + value + "_" + id_2);
                                 databaseHelper_2.addData(temp.get(0), temp.get(1), code, value, id_2);
                             }

@@ -7,8 +7,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class DatabaseHelper_4 extends SQLiteOpenHelper {
 
-    private static final String DATABASE_NAME ="Part_I.db";
-    private static final String TABLE_NAME = "ICD_CODES_PART_I";
+    private static final String DATABASE_NAME ="Part_XX.db";
+    private static final String TABLE_NAME = "ICD_CODES_PART_XX";
     private static final String col2 = "GROUPID";
     private static final String col3 = "GROUPNAME";
     private static final String col4 = "OUTERCODEGROUPID";

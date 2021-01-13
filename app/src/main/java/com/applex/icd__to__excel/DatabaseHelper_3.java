@@ -11,8 +11,8 @@ import java.util.ArrayList;
 
 public class DatabaseHelper_3 extends SQLiteOpenHelper {
 
-    private static final String DATABASE_NAME ="Part_3_I.db";
-    private static final String TABLE_NAME = "Part_3_I_data";
+    private static final String DATABASE_NAME ="Part_3_XX.db";
+    private static final String TABLE_NAME = "Part_3_XX_data";
     private static final String col2 = "GROUPID";
     private static final String col3 = "GROUPNAME";
     private static final String col4 = "OUTERCODEGROUPID";
